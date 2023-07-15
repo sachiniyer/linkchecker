@@ -1,8 +1,22 @@
 use clap::{Arg, ArgAction, Command};
+use reqwest;
 use std::fs::File;
 use std::io::{self, BufRead};
+use tokio;
 
-fn get_list(matches: &clap::ArgMatches) -> Result<Vec<String>, String> {
+async fn get_request(url: &str) {
+    let response = reqwest::get(url).await;
+    match response {
+        Ok(response) => {
+            println!("{}: {}", url, response.status());
+        }
+        Err(error) => {
+            println!("{}: {}", url, error);
+        }
+    }
+}
+
+async fn get_list(matches: &clap::ArgMatches) -> Result<(), String> {
     let mut list = Vec::new();
     let mut files_given = false;
     if let Some(input_file) = matches.get_one::<String>("input") {
@@ -27,19 +41,25 @@ fn get_list(matches: &clap::ArgMatches) -> Result<Vec<String>, String> {
         }
         files_given = true;
     }
-    if !files_given {
+    if files_given {
+        let futures = list.iter().map(|url| get_request(url));
+        futures::future::join_all(futures).await;
+    } else {
         let stdin = io::stdin();
         let reader = stdin.lock();
         for line in reader.lines() {
             if let Ok(line) = line {
-                list.push(line);
+                let futures = line.split_whitespace().map(|url| get_request(url));
+                futures::future::join_all(futures).await;
             }
         }
     }
-    Ok(list)
+
+    Ok(())
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let matches = Command::new("linkchecker")
         .version("1.0")
         .author("Sachin Iyer")
@@ -58,5 +78,7 @@ fn main() {
         .get_matches();
 
     let list = get_list(&matches);
-    println!("List: {:?}", list);
+    if let Err(error) = list.await {
+        println!("{}", error);
+    }
 }
