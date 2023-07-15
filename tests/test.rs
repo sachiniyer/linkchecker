@@ -29,4 +29,14 @@ mod tests {
             .is("https://yatin.cc: 200 OK\nhttps://yatin.cc: 200 OK")
             .unwrap()
     }
+
+    #[test]
+    fn test_redirect() {
+        let args = vec!["https://dev.hpc.nyu.edu/corelink/corelink-examples"];
+        Assert::main_binary()
+            .with_args(&args)
+            .stdout()
+            .is("https://dev.hpc.nyu.edu/corelink/corelink-examples: 200 OK")
+            .unwrap()
+    }
 }
